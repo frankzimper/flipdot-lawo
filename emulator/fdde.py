@@ -66,17 +66,21 @@ def readSerial():
             try:
                 data = json.loads(data_raw)
             except json.JSONDecodeError:
-                print (data_raw)
+                print(data_raw)
                 continue
             if (not isinstance(data, dict)):
-                print (data_raw)
+                print(data_raw)
                 continue
-            x = data['column']
-            y = data['row']
-            if data['status'] == 1:
-                color = 'yellow'
-            else:
-                color = 'black'
+
+            try:
+                x = data['column']
+                y = data['row']
+                if data['status'] == 1:
+                    color = 'yellow'
+                else:
+                    color = 'black'
+            except KeyError:
+                continue
 
             display.create_rectangle(
                 (x * 10 + 1, y * 10 + 1),

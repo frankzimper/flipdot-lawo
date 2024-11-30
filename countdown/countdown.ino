@@ -1,7 +1,8 @@
 #include "font8x8_basic.h"
 #include "6x8_horizontal_LSB_1.h"
 #include "config.h"
-#include <WiFiClientSecure.h>
+//#include <WiFiClientSecure.h>
+#include <WiFi.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 

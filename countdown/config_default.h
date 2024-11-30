@@ -10,6 +10,10 @@ struct Event {
   String text3;
 };
 
+// Timestamps ermitteln bspw. mit Python:
+// from datetime import datetime
+// datetime(2024, 12, 24, 0, 0, 0, 0).timestamp()
+
 #define EVENTDATA { \
   { \
     1703444400, 1703703600, \
