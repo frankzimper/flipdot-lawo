@@ -1,9 +1,11 @@
 #include "font8x8_basic.h"
 #include "6x8_horizontal_LSB_1.h"
 #include "config.h"
-#include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
+
+
 
 // pin assignments
 // 
@@ -46,11 +48,6 @@ const byte MODE_CURTAIN_OUT = 3;
 const int PAUSE_BETWEEN_DOT_FLIPS_IN_MS = 2; // lowest value to reliably flip all dots with 5A power supply (lights off)
 const int MAX_PAUSE_BETWEEN_ACTIONS = 5000;
 
-// Event time
-long timeJubilee = 1700000000;
-// Heilig Abend 20:00 CET
-long timeJubilee2 = 1703444400;
-
 // internal storage for the current state of the display
 boolean dotmatrix[DISPLAY_WIDTH][MODULE_HEIGHT];
 
@@ -60,7 +57,8 @@ long lastUpdate = 0;
 // Define NTP Client to get time
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
-  
+
+int currentEvent;
 
 void setup() {
 
@@ -128,15 +126,24 @@ void setup() {
       flipDotSimple(x, y, false, true);
     }
   }
+
+  // section77 Schriftzug anzeigen
+  showName(true);
+  delay(45000);
+
+  // section77 Schriftzug wieder löschen
+  showName(false);
+
+  currentEvent = 0;
+
 }
 
 
 void loop() {
 
-  char txtCurTime[19];
-  char txtTime2Wait[19];
-  // char txtCurTimeOld[18];
-  // char txtTime2WaitOld[18];
+  char txtCurTime[21];
+  char txtTime2Wait[21];
+  long curTime;
 
   if (timeClient.getEpochTime() - lastUpdate > 3600) {
     timeClient.update();
@@ -158,43 +165,32 @@ void loop() {
   // section77 Schriftzug wieder löschen
   showName(false);
 
-  // Countdown bis zu DEM EREIGNIS anzeigen
-  long curTime = timeClient.getEpochTime();
-  long timeToWait = timeJubilee - curTime;
-  sprintf(txtTime2Wait, "Noch %12ss", printfcomma(timeToWait));
-  if (timeJubilee == timeJubilee2) {
-    sprintf(txtCurTime, "%s", " bis Weihnachten  ");
-    showText6x8(2, 0, txtTime2Wait, true);
-    showText6x8(2, 8, txtCurTime, true);
-  } else {
-    sprintf(txtCurTime, " %15ss", printfcomma(curTime));
-    showText6x8(0, 0, txtCurTime, true);
-    showText6x8(0, 8, txtTime2Wait, true);
+  if (events[currentEvent].timeEnd < timeClient.getEpochTime()) {
+    currentEvent++;
   }
 
-  // we don't want to miss THE EVENT
-  int loops = timeToWait < 60 ? 80: 15;
+  // Countdown bis zum nächsten Event
+  if (events[currentEvent].timeBegin > timeClient.getEpochTime()) {
+    // we don't want to miss THE EVENT
+    int loops = events[currentEvent].timeBegin - curTime < 60 ? 80: 15;
 
-  for (int i=0; i<loops; i++) {
-    long curTime = timeClient.getEpochTime();
-    long timeToWait = timeJubilee - curTime;
-    if (timeToWait < 0) {
-      happyDings();
-      break;
+    for (int i=0; i<loops; i++) {
+      curTime = timeClient.getEpochTime();
+      long timeToWait = events[currentEvent].timeBegin - curTime;
+      sprintf(txtTime2Wait, "  Noch %12ss", printfcomma(timeToWait));
+      showText6x8(0, 0, txtTime2Wait, true);
+      showText6x8(0, 8, events[currentEvent].text1, true);
+
+      curTime = timeClient.getEpochTime();
+      while (timeClient.getEpochTime() == curTime) {}
     }
-    sprintf(txtTime2Wait, "Noch %12ss", printfcomma(timeToWait));
-    if (timeJubilee == timeJubilee2) {
-      sprintf(txtCurTime, "%s", " bis Weihnachten  ");
-      showText6x8(2, 0, txtTime2Wait, true);
-      showText6x8(2, 8, txtCurTime, true);
-    } else {
-      sprintf(txtCurTime, " %15ss", printfcomma(curTime));
-      showText6x8(0, 0, txtCurTime, true);
-      showText6x8(0, 8, txtTime2Wait, true);
-    }
+  }
 
-    while (timeClient.getEpochTime() == curTime) {}
-
+  // Eventtext anzeigen
+  if (events[currentEvent].timeBegin < timeClient.getEpochTime()) {
+    showText6x8(0, 0, events[currentEvent].text2, true);
+    showText6x8(0, 8, events[currentEvent].text3, true);
+    delay(15000);
   }
 
 }
@@ -212,7 +208,7 @@ void happyDings() {
   }
   showText6x8((pos+1) * 6 , 4, "Dings!", true);
   delay(5000);
-  timeJubilee = timeJubilee2;
+  //timeJubilee = timeJubilee2;
 }
 
 // custom drawing
